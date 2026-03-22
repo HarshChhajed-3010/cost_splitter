@@ -72,7 +72,7 @@ pip install -r requirements.txt
 Before you launch the app, you need to configure your local settings and API key.
 
 1. Open the `config.json` file in the root directory.  
-2. Replace `"your_api_key"` with your free **Google Gemini API Key** (you can get one at [Google AI Studio](https://aistudio.google.com/app/apikey)).  
+2. Replace `"your_api_key"` with your free **Google Gemini API Key** (you can get one at [Google AI Studio](https://aistudio.google.com/app/apikey) and if you need help getting an API key, check out this quick [YouTube tutorial](https://www.youtube.com/watch?v=Uyn-P2nRvDA)). 
 3. Update the `"presets"` dictionary with your actual group names and members.
 
 Your `config.json` should look like this:
