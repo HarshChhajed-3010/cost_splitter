@@ -35,7 +35,7 @@ Follow the steps below for your operating system to get the app running locally.
 ### **1. Clone the Repository**
 
 ```bash
-git clone https://github.com/your-username/cost-splitter.git
+git clone https://github.com/HarshChhajed-3010/cost_splitter.git
 cd cost-splitter
 ```
 
@@ -87,8 +87,6 @@ Your `config.json` should look like this:
 }
 ```
 
-> **Note:** Do not commit your `config.json` with a real API key to GitHub. Ensure it is added to your `.gitignore` file.
-
 ---
 
 ## 🏃‍♂️ **Running the App**
@@ -110,20 +108,6 @@ python -m streamlit run app.py
 The app will automatically open in your default web browser at:
 
 `http://localhost:8501`
-
----
-
-## 🧪 **Running the Tests**
-
-To verify the app’s core math logic and UI flow without making live API calls to Google, run the included test suite.
-
-**For all operating systems:**
-
-```bash
-python -m pytest test_app.py -v
-```
-
-This runs **100 randomized math scenarios** to ensure split calculations balance perfectly to the cent.
 
 ---
 
