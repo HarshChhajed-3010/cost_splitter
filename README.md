@@ -113,5 +113,5 @@ The app will automatically open in your default web browser at:
 
 ## **Credits**
 
-This project was inspired by the work of **Hitanshu Shah** ,**Darsh Chandura** and **Amit Patel**.
+This project was inspired by the work of **Hitanshu Shah**, **Darsh Chandura** and **Amit Patel**.
 
