@@ -457,7 +457,6 @@ def cost_splitter_app():
         st.download_button(label="Download CSV", data=csv_data, file_name="cost_splits.csv", mime='text/csv')
 
     st.divider()
-    st.caption("This project was inspired from the work of Hitanshu Shah, Amit Prajapati, and Darsh Chandura.")
-
+    st.caption("Created to automate and fix the tedious manual entry app originally built by Hitanshu Shah, Amit Prajapati, and Darsh Chandura.")
 if __name__ == "__main__":
     cost_splitter_app()
