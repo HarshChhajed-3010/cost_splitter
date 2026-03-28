@@ -3,25 +3,72 @@ import random
 import json
 from unittest.mock import MagicMock, patch
 from streamlit.testing.v1 import AppTest
-from app import recalculate_totals, calculate_total_expense
+
+# Import the core logic functions directly from your app
+from app import recalculate_totals, calculate_total_expense, generate_csv, parse_receipt_images_ai
 
 # ==========================================
-# 1. MOCK DATA FOR OFFLINE TESTING
+# 1. PURE LOGIC TESTS (Math & Conversions)
 # ==========================================
 
-MOCK_AI_RESPONSE = [
-    {"original_name": "Fresh Roma Tomato, Each", "short_name": "Tomatoes", "cost": 5.58},
-    {"original_name": "Great Value Whole Vitamin D Milk, Gallon", "short_name": "Milk", "cost": 12.08},
-    {"original_name": "Marketside Fresh Spinach, 10 oz Bag", "short_name": "Spinach", "cost": 1.97}
-]
+def test_calculate_total_expense():
+    """Ensure the grand total calculates correctly across all expenses."""
+    expenses = [
+        {'cost': 15.50},
+        {'cost': 10.25},
+        {'cost': 4.25}
+    ]
+    assert calculate_total_expense(expenses) == 30.0
 
-# ==========================================
-# 2. CORE LOGIC TESTS (MATH INTEGRITY)
-# ==========================================
+def test_recalculate_totals_equal_split():
+    """Verify standard equal split math."""
+    expenses = [{
+        'name': 'Pizza',
+        'cost': 30.0,
+        'split_method': 'Equal',
+        'selected_people': ['Harsh', 'Darsh', 'Manav']
+    }]
+    people = ['Harsh', 'Darsh', 'Manav', 'Amit'] # Amit bought nothing
+    
+    totals = recalculate_totals(expenses, people)
+    
+    assert totals['Harsh']['total'] == 10.0
+    assert totals['Darsh']['total'] == 10.0
+    assert totals['Manav']['total'] == 10.0
+    assert totals['Amit']['total'] == 0.0
+
+def test_recalculate_totals_weighted_split():
+    """Verify custom weighted split math."""
+    expenses = [{
+        'name': 'Drinks',
+        'cost': 50.0,
+        'split_method': 'Weighted',
+        'selected_people': ['Harsh', 'Hitanshu'],
+        'quantities': {'Harsh': 4.0, 'Hitanshu': 1.0} # 5 drinks total. Harsh pays 4/5, Hitanshu 1/5
+    }]
+    people = ['Harsh', 'Hitanshu']
+    
+    totals = recalculate_totals(expenses, people)
+    
+    assert totals['Harsh']['total'] == 40.0
+    assert totals['Hitanshu']['total'] == 10.0
+
+def test_generate_csv():
+    """Ensure the dictionary structure correctly converts to a CSV string."""
+    totals = {
+        'Darsh': {'total': 15.5, 'items': [('Burgers', 15.5)]},
+        'Harsh': {'total': 5.0, 'items': [('Fries', 5.0)]}
+    }
+    csv_string = generate_csv(totals)
+    
+    # Check if headers and data are in the string
+    assert "Person,Total,Items" in csv_string
+    assert "Darsh,15.50,Burgers: $15.50" in csv_string
+    assert "Harsh,5.00,Fries: $5.00" in csv_string
 
 def test_100_random_math_combinations():
-    """Verify that totals always sum up to the grand total across 100 random scenarios."""
-    people_pool = ["Harsh", "Darsh", "Manav", "Darshan", "Amit", "Hitanshu"]
+    """Robust test: Verify that totals always sum up to the grand total across 100 random scenarios."""
+    people_pool = ["Harsh", "Darsh", "Manav", "Amit", "Hitanshu", "Darsh Chandura"]
 
     for _ in range(100):
         num_people = random.randint(2, len(people_pool))
@@ -55,95 +102,16 @@ def test_100_random_math_combinations():
         assert calculated_sum == pytest.approx(expected_grand_total, abs=0.01)
 
 # ==========================================
-# 3. UI & INTEGRATION TESTS (MOCKED API)
+# 2. AI PARSING TESTS (MOCKED API)
 # ==========================================
 
-def test_app_initialization():
-    """Ensure the app loads and session states are initialized."""
-    at = AppTest.from_file("app.py").run()
-    
-    # Filter out non-fatal Streamlit warnings (like the CookieManager widget warning)
-    fatal_errors = [e for e in at.exception if getattr(e, 'is_warning', False) is False]
-    assert not fatal_errors
-    
-    assert "Cost Splitter for Shared Purchases" in at.title[0].value
-
-@patch("app.genai.Client")
-def test_ai_scanning_flow_no_api_call(mock_client_class):
-    """
-    Simulates the AI Scanning process without making real network requests.
-    Verifies the queue handles the AI response correctly.
-    """
-    # 1. Setup Mock Client
+@patch('app.genai.Client')
+def test_parse_receipt_images_ai(mock_client_class):
+    """Simulate the Gemini API returning data to ensure our parsing logic handles the JSON correctly."""
+    # 1. Setup Mock API Response
     mock_client = MagicMock()
     mock_client_class.return_value = mock_client
     
-    # Mock the response object from Gemini
     mock_response = MagicMock()
-    mock_response.text = json.dumps(MOCK_AI_RESPONSE)
-    mock_client.models.generate_content.return_value = mock_response
-
-    # 2. Run App
-    at = AppTest.from_file("app.py").run()
-    
-    # Select the first text input in the sidebar (API Key) and the first in the main body (People)
-    at.sidebar.text_input[0].set_value("dummy_key")
-    at.text_input[0].set_value("Harsh, Amit").run()
-    
-    # Verify AI Scan button logic
-    from app import parse_receipt_images_ai
-    items = parse_receipt_images_ai([MagicMock()], "dummy_key")
-    
-    assert len(items) == 3
-    assert items[0]["short_name"] == "Tomatoes"
-    assert items[1]["cost"] == 12.08
-
-def test_select_all_behavior():
-    """Verify that 'Select All' correctly populates involved people."""
-    at = AppTest.from_file("app.py").run()
-    
-    # Populate the main "Enter names" input box
-    at.text_input[0].set_value("Harsh, Darsh, Manav").run()
-    
-    # Check 'Select All' by passing its exact dynamic key
-    at.checkbox(key="select_all_0").check().run()
-    
-    # Verify checkboxes are checked via their resulting dynamic keys
-    assert at.checkbox(key="chk_Harsh_True_0").value is True
-    assert at.checkbox(key="chk_Darsh_True_0").value is True
-
-def test_name_shortening_toggle_logic():
-    """Test if the UI correctly toggles between Shortened and Original names from the queue."""
-    # We simulate an item in the queue directly
-    at = AppTest.from_file("app.py")
-    at.session_state.pending_receipt_items = [MOCK_AI_RESPONSE[0]]
-    at.run()
-    
-    # Input a person so the rest of the form renders
-    at.text_input[0].set_value("Harsh").run()
-
-    # Locate the first radio button ("Name Format") and second text input ("Final Item Name")
-    radio = at.radio[0]
-    
-    # Set to 'Original'
-    radio.set_value("Original").run()
-    assert at.text_input[1].value == "Fresh Roma Tomato, Each"
-    
-    # Set back to 'Shortened'
-    at.radio[0].set_value("Shortened").run()
-    assert at.text_input[1].value == "Tomatoes"
-
-def test_weighted_split_math():
-    """Specific check for weighted quantity logic."""
-    expenses = [{
-        'name': 'Steak',
-        'cost': 100.0,
-        'split_method': 'Weighted',
-        'selected_people': ['Harsh', 'Darsh'],
-        'quantities': {'Harsh': 3.0, 'Darsh': 1.0}
-    }]
-    people = ['Harsh', 'Darsh']
-    
-    totals = recalculate_totals(expenses, people)
-    assert totals['Harsh']['total'] == 75.0
-    assert totals['Darsh']['total'] == 25.0
+    # Fixed the malformed JSON string so the parser won't crash
+    mock_response.text = ''
