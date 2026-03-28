@@ -1,3 +1,15 @@
+import sys
+
+# --- CLOUD HOTFIX: PYTHON 3.14 COMPATIBILITY ---
+# Python 3.13+ completely removed the 'imghdr' library. 
+# To prevent older package combinations from crashing Streamlit, we mock it here before loading.
+if 'imghdr' not in sys.modules:
+    import types
+    mock_imghdr = types.ModuleType('imghdr')
+    mock_imghdr.what = lambda *args, **kwargs: 'png'
+    sys.modules['imghdr'] = mock_imghdr
+# -----------------------------------------------
+
 import streamlit as st
 import pandas as pd
 import csv
