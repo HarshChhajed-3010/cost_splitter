@@ -61,7 +61,11 @@ def test_100_random_math_combinations():
 def test_app_initialization():
     """Ensure the app loads and session states are initialized."""
     at = AppTest.from_file("app.py").run()
-    assert not at.exception
+    
+    # Filter out non-fatal Streamlit warnings (like the CookieManager widget warning)
+    fatal_errors = [e for e in at.exception if getattr(e, 'is_warning', False) is False]
+    assert not fatal_errors
+    
     assert "Cost Splitter for Shared Purchases" in at.title[0].value
 
 @patch("app.genai.Client")

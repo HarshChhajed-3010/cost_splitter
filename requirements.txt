@@ -5,3 +5,4 @@ pillow
 google-genai
 pytest
 pytest-mock
+extra-streamlit-components

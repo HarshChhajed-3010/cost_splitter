@@ -4,35 +4,41 @@ import csv
 from io import StringIO
 import json
 import re
-import os
 from PIL import Image
 
-# --- NEW: Imports for Reliable AI Vision Phase ---
+# --- NEW: Imports for Cloud-Safe Browser Storage ---
 from google import genai
+import extra_streamlit_components as stx
 
-# --- NEW: Local Storage Helper Functions ---
-CONFIG_FILE = "config.json"
+# --- Cloud-Safe Cookie Manager ---
+# This initializes the cookie manager so data is saved to the user's device, not the server.
+@st.cache_resource
+def get_cookie_manager():
+    return stx.CookieManager()
+
+cookie_manager = get_cookie_manager()
 
 def load_config():
-    """Loads API key and presets from a local JSON file."""
-    if os.path.exists(CONFIG_FILE):
+    """Loads API key and presets from the user's browser cookies."""
+    cookie_val = cookie_manager.get(cookie="cost_splitter_config")
+    if cookie_val:
         try:
-            with open(CONFIG_FILE, "r") as f:
-                return json.load(f)
+            if isinstance(cookie_val, str):
+                return json.loads(cookie_val)
+            return cookie_val
         except Exception:
             return {}
     return {}
 
 def save_config(api_key, presets):
-    """Saves API key and presets to a local JSON file."""
+    """Saves API key and presets to the user's browser cookies (expires in 1 year)."""
     config = {
         "api_key": api_key,
         "presets": presets
     }
-    with open(CONFIG_FILE, "w") as f:
-        json.dump(config, f)
+    cookie_manager.set("cost_splitter_config", json.dumps(config), max_age=31536000)
 
-# Initialize configuration
+# Initialize configuration from the user's local browser
 config_data = load_config()
 
 # Initialize or update session state variables if not present
@@ -45,7 +51,7 @@ if 'temp_expense' not in st.session_state:
 if 'form_values' not in st.session_state:
     st.session_state.form_values = {"item_name": "", "total_cost": 0.0, "split_method": "Equal", "selected_people": []}
 if 'presets' not in st.session_state:
-    # Load presets from config file or default to empty
+    # Safely load presets from cookies, default to empty dict if none exist
     st.session_state.presets = config_data.get("presets", {})
 if 'form_key' not in st.session_state:
     st.session_state.form_key = 0
@@ -54,7 +60,7 @@ if 'pending_receipt_items' not in st.session_state:
 if 'current_receipt_index' not in st.session_state:
     st.session_state.current_receipt_index = 0
 
-# --- UPDATED: AI Vision Parsing Function ---
+# --- AI Vision Parsing Function ---
 def parse_receipt_images_ai(images, api_key):
     if not api_key:
         st.error("⚠️ Please enter a Google Gemini API Key in the sidebar to use the scanner.")
@@ -155,14 +161,14 @@ def cost_splitter_app():
 
     # --- Sidebar setup ---
     st.sidebar.header("🔑 API Settings")
-    st.sidebar.write("Settings are saved locally to `config.json`.")
+    st.sidebar.write("Settings are securely saved to your browser cookies.")
     
-    # Load saved key from config
+    # Load saved key from user's browser cookie
     saved_api_key = config_data.get("api_key", "")
     api_key = st.sidebar.text_input("Gemini API Key", value=saved_api_key, type="password")
     
-    # Save API key if it changed
-    if api_key != saved_api_key:
+    # Save API key to their browser if it changed
+    if api_key and api_key != saved_api_key:
         save_config(api_key, st.session_state.presets)
         
     st.sidebar.markdown("[Get a free key here](https://aistudio.google.com/app/apikey)")
@@ -321,7 +327,7 @@ def cost_splitter_app():
         st.download_button(label="Download CSV", data=csv_data, file_name="cost_splits.csv", mime='text/csv')
 
     st.divider()
-    st.caption("This project was inspired from the work of Hitanshu Shah, Darsh Chandura and Amit Prajapati")
+    st.caption("This project was inspired from the work of Hitanshu Shah and Amit Patel")
 
 if __name__ == "__main__":
     cost_splitter_app()
