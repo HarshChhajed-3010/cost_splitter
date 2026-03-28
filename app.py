@@ -49,6 +49,15 @@ def save_config(api_key, presets):
 # Initialize configuration from the user's local browser
 config_data = load_config()
 
+# --- NEW: COOKIE SYNC LOGIC ---
+# Streamlit components take a fraction of a second to load cookies on the very first run.
+# We use a 'cookie_synced' flag to ensure we pull the group names into session state 
+# ONLY once the cookie has successfully arrived from the browser.
+if 'cookie_synced' not in st.session_state:
+    if config_data:
+        st.session_state.presets = config_data.get("presets", {})
+        st.session_state.cookie_synced = True
+
 # Initialize or update session state variables if not present
 if 'expenses' not in st.session_state:
     st.session_state.expenses = []
@@ -59,8 +68,8 @@ if 'temp_expense' not in st.session_state:
 if 'form_values' not in st.session_state:
     st.session_state.form_values = {"item_name": "", "total_cost": 0.0, "split_method": "Equal", "selected_people": []}
 if 'presets' not in st.session_state:
-    # Safely load presets from cookies, default to empty dict if none exist
-    st.session_state.presets = config_data.get("presets", {})
+    # Fallback for brand new users who have no cookies yet
+    st.session_state.presets = {}
 if 'form_key' not in st.session_state:
     st.session_state.form_key = 0
 if 'pending_receipt_items' not in st.session_state:
