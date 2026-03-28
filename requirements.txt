@@ -1,6 +1,6 @@
 numpy
 pandas
-streamlit<1.37.0
+streamlit
 altair<5
 pillow
 google-genai

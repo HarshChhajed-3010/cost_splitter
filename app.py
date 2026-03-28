@@ -11,12 +11,8 @@ from google import genai
 import extra_streamlit_components as stx
 
 # --- Cloud-Safe Cookie Manager ---
-# This initializes the cookie manager so data is saved to the user's device, not the server.
-@st.cache_resource(experimental_allow_widgets=True)
-def get_cookie_manager():
-    return stx.CookieManager()
-
-cookie_manager = get_cookie_manager()
+# Initialize directly (without cache) to comply with latest Streamlit widget rules
+cookie_manager = stx.CookieManager()
 
 def load_config():
     """Loads API key and presets from the user's browser cookies."""
