@@ -39,10 +39,11 @@ def load_config():
     return {}
 
 def save_config(api_key, presets):
-    """Saves API key and presets to the user's browser cookies (expires in 1 year)."""
+    """Saves API key, presets, and walkthrough status to the user's browser cookies (expires in 1 year)."""
     config = {
         "api_key": api_key,
-        "presets": presets
+        "presets": presets,
+        "walkthrough_completed": st.session_state.get("walkthrough_completed", True)
     }
     cookie_manager.set("cost_splitter_config", json.dumps(config), max_age=31536000)
 
@@ -56,9 +57,16 @@ if 'cookie_synced' not in st.session_state:
         st.session_state.presets = config_data.get("presets", {})
         st.session_state.cookie_synced = True
 
+if 'walkthrough_completed' not in st.session_state:
+    # Mark as completed if the cookie flag is True, OR if they already have legacy data (API key/presets)
+    if config_data.get("walkthrough_completed") or config_data.get("api_key") or config_data.get("presets"):
+        st.session_state.walkthrough_completed = True
+    else:
+        st.session_state.walkthrough_completed = False
+
 if 'show_walkthrough' not in st.session_state:
-    # If no config data at all, they are a new user. Show the walkthrough!
-    if not config_data.get("api_key") and not config_data.get("presets"):
+    # Show the walkthrough if they haven't completed it
+    if not st.session_state.walkthrough_completed:
         st.session_state.show_walkthrough = True
         st.session_state.walk_step = 1
     else:
@@ -223,7 +231,7 @@ def cost_splitter_app():
                 mems = st.session_state.wt_gmem
                 if name and mems:
                     st.session_state.presets[name] = [p.strip() for p in mems.split(',') if p.strip()]
-                    curr_api = load_config().get("api_key", "")
+                    curr_api = config_data.get("api_key", "")
                     save_config(curr_api, st.session_state.presets)
                 st.session_state.walk_step = 3
 
@@ -248,6 +256,9 @@ def cost_splitter_app():
             
             def step3_finish():
                 st.session_state.show_walkthrough = False
+                st.session_state.walkthrough_completed = True
+                curr_api = config_data.get("api_key", "")
+                save_config(curr_api, st.session_state.presets)
 
             st.button("Let's Go! 🚀", type="primary", on_click=step3_finish)
 
@@ -255,6 +266,9 @@ def cost_splitter_app():
         
         def skip_all():
             st.session_state.show_walkthrough = False
+            st.session_state.walkthrough_completed = True
+            curr_api = config_data.get("api_key", "")
+            save_config(curr_api, st.session_state.presets)
             
         st.button("Skip Entire Walkthrough ⏭️", on_click=skip_all)
         
@@ -288,6 +302,20 @@ def cost_splitter_app():
             st.sidebar.success(f"Saved group: {new_preset_name}")
         else:
             st.sidebar.warning("Please provide both a name and people.")
+
+    # --- Help Section for Restarting Walkthrough ---
+    st.sidebar.divider()
+    st.sidebar.header("❓ Need Help?")
+    
+    def trigger_walkthrough():
+        st.session_state.show_walkthrough = True
+        st.session_state.walk_step = 1
+        st.session_state.walkthrough_completed = False
+        curr_api = config_data.get("api_key", "")
+        # Save immediately to override the cookie status flag
+        save_config(curr_api, st.session_state.presets)
+        
+    st.sidebar.button("Restart App Walkthrough", on_click=trigger_walkthrough)
 
     # --- Dropdown to load saved groups ---
     st.subheader("1. Who is splitting the cost?")
