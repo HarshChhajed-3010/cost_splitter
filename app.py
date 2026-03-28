@@ -20,16 +20,15 @@ from PIL import Image
 
 # --- NEW: Imports for Cloud-Safe Browser Storage ---
 from google import genai
-import extra_streamlit_components as stx
+from streamlit_cookies_controller import CookieController
 
 # --- Cloud-Safe Cookie Manager ---
-# Initialize directly with a fixed key to comply with latest Streamlit widget rules 
-# and prevent duplicate UI element errors across reruns.
-cookie_manager = stx.CookieManager(key="cost_splitter_cookie_manager")
+# Initialize the modern CookieController which is fully compatible with Streamlit 1.40+
+cookie_manager = CookieController()
 
 def load_config():
     """Loads API key and presets from the user's browser cookies."""
-    cookie_val = cookie_manager.get(cookie="cost_splitter_config")
+    cookie_val = cookie_manager.get("cost_splitter_config")
     if cookie_val:
         try:
             if isinstance(cookie_val, str):
