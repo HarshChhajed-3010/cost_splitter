@@ -191,7 +191,7 @@ def cost_splitter_app():
             st.session_state.presets[new_preset_name] = [p.strip() for p in new_preset_people.split(',') if p.strip()]
             save_config(api_key, st.session_state.presets)
             st.sidebar.success(f"Saved group: {new_preset_name}")
-            st.rerun()
+            # Removed st.rerun() here so the browser has time to actually save the cookie component
         else:
             st.sidebar.warning("Please provide both a name and people.")
 
