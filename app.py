@@ -12,7 +12,7 @@ import extra_streamlit_components as stx
 
 # --- Cloud-Safe Cookie Manager ---
 # This initializes the cookie manager so data is saved to the user's device, not the server.
-@st.cache_resource
+@st.cache_resource(experimental_allow_widgets=True)
 def get_cookie_manager():
     return stx.CookieManager()
 
