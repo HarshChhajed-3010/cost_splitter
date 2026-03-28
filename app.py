@@ -49,14 +49,20 @@ def save_config(api_key, presets):
 # Initialize configuration from the user's local browser
 config_data = load_config()
 
-# --- NEW: COOKIE SYNC LOGIC ---
-# Streamlit components take a fraction of a second to load cookies on the very first run.
-# We use a 'cookie_synced' flag to ensure we pull the group names into session state 
-# ONLY once the cookie has successfully arrived from the browser.
+# --- NEW: COOKIE SYNC & WALKTHROUGH LOGIC ---
+# Ensure we pull the group names into session state ONLY once the cookie has successfully arrived.
 if 'cookie_synced' not in st.session_state:
     if config_data:
         st.session_state.presets = config_data.get("presets", {})
         st.session_state.cookie_synced = True
+
+if 'show_walkthrough' not in st.session_state:
+    # If no config data at all, they are a new user. Show the walkthrough!
+    if not config_data.get("api_key") and not config_data.get("presets"):
+        st.session_state.show_walkthrough = True
+        st.session_state.walk_step = 1
+    else:
+        st.session_state.show_walkthrough = False
 
 # Initialize or update session state variables if not present
 if 'expenses' not in st.session_state:
@@ -68,7 +74,6 @@ if 'temp_expense' not in st.session_state:
 if 'form_values' not in st.session_state:
     st.session_state.form_values = {"item_name": "", "total_cost": 0.0, "split_method": "Equal", "selected_people": []}
 if 'presets' not in st.session_state:
-    # Fallback for brand new users who have no cookies yet
     st.session_state.presets = {}
 if 'form_key' not in st.session_state:
     st.session_state.form_key = 0
@@ -176,6 +181,87 @@ def calculate_total_expense(expenses):
 def cost_splitter_app():
     st.title("Cost Splitter for Shared Purchases")
 
+    # ==========================================
+    # --- FIRST TIME USER WALKTHROUGH WIZARD ---
+    # ==========================================
+    if st.session_state.get('show_walkthrough'):
+        st.markdown("## 👋 Welcome to Cost Splitter!")
+        step = st.session_state.get('walk_step', 1)
+
+        if step == 1:
+            st.markdown("### Step 1 of 3: Unlock AI Scanning (Optional)")
+            st.write("To magically extract items and prices from your receipt screenshots, you'll need a free Google Gemini API Key.")
+            st.write("If you prefer to type in expenses manually, you can completely skip this!")
+            
+            st.text_input("Gemini API Key", type="password", key="wt_api_input")
+            st.markdown("[Get a free key here](https://aistudio.google.com/app/apikey)")
+            
+            def step1_save():
+                val = st.session_state.wt_api_input
+                if val:
+                    save_config(val, st.session_state.presets)
+                st.session_state.walk_step = 2
+
+            def step1_skip():
+                st.session_state.walk_step = 2
+
+            col1, col2 = st.columns(2)
+            with col1:
+                st.button("Save & Continue", type="primary", on_click=step1_save)
+            with col2:
+                st.button("Skip API Setup", on_click=step1_skip)
+
+        elif step == 2:
+            st.markdown("### Step 2 of 3: Add Your First Group")
+            st.write("Save the people you usually split costs with so you don't have to retype their names every time.")
+            
+            st.text_input("Group Name (e.g., Roommates)", key="wt_gname")
+            st.text_input("Names (comma-separated, e.g., Harsh, Darsh, Manav)", key="wt_gmem")
+            
+            def step2_save():
+                name = st.session_state.wt_gname
+                mems = st.session_state.wt_gmem
+                if name and mems:
+                    st.session_state.presets[name] = [p.strip() for p in mems.split(',') if p.strip()]
+                    curr_api = load_config().get("api_key", "")
+                    save_config(curr_api, st.session_state.presets)
+                st.session_state.walk_step = 3
+
+            def step2_skip():
+                st.session_state.walk_step = 3
+
+            col1, col2 = st.columns(2)
+            with col1:
+                st.button("Save Group & Continue", type="primary", on_click=step2_save)
+            with col2:
+                st.button("Skip Group Setup", on_click=step2_skip)
+
+        elif step == 3:
+            st.markdown("### Step 3 of 3: How It Works")
+            st.info("""
+            **Here is how you use the app:**
+            1. **Pick Your Group:** Select your group in the sidebar or enter names manually.
+            2. **Add Expenses:** Upload a receipt to scan with AI, or type the item and cost yourself.
+            3. **Assign Splits:** Split costs equally, or assign custom weights (e.g., if someone ate 3 slices of pizza and another ate 1).
+            4. **Settle Up:** Check the final breakdown at the bottom and export a CSV to share!
+            """)
+            
+            def step3_finish():
+                st.session_state.show_walkthrough = False
+
+            st.button("Let's Go! 🚀", type="primary", on_click=step3_finish)
+
+        st.divider()
+        
+        def skip_all():
+            st.session_state.show_walkthrough = False
+            
+        st.button("Skip Entire Walkthrough ⏭️", on_click=skip_all)
+        
+        # Stop rendering the main app underneath while the wizard is active
+        return
+    # ==========================================
+
     # --- Sidebar setup ---
     st.sidebar.header("🔑 API Settings")
     st.sidebar.write("Settings are securely saved to your browser cookies.")
@@ -200,7 +286,6 @@ def cost_splitter_app():
             st.session_state.presets[new_preset_name] = [p.strip() for p in new_preset_people.split(',') if p.strip()]
             save_config(api_key, st.session_state.presets)
             st.sidebar.success(f"Saved group: {new_preset_name}")
-            # Removed st.rerun() here so the browser has time to actually save the cookie component
         else:
             st.sidebar.warning("Please provide both a name and people.")
 
@@ -344,7 +429,7 @@ def cost_splitter_app():
         st.download_button(label="Download CSV", data=csv_data, file_name="cost_splits.csv", mime='text/csv')
 
     st.divider()
-    st.caption("This project was inspired from the work of Hitanshu Shah and Amit Patel")
+    st.caption("This project was inspired from the work of Hitanshu Shah, Amit Patel, and Darsh Chandura.")
 
 if __name__ == "__main__":
     cost_splitter_app()
