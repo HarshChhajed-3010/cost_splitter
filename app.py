@@ -11,8 +11,9 @@ from google import genai
 import extra_streamlit_components as stx
 
 # --- Cloud-Safe Cookie Manager ---
-# Initialize directly (without cache) to comply with latest Streamlit widget rules
-cookie_manager = stx.CookieManager()
+# Initialize directly with a fixed key to comply with latest Streamlit widget rules 
+# and prevent duplicate UI element errors across reruns.
+cookie_manager = stx.CookieManager(key="cost_splitter_cookie_manager")
 
 def load_config():
     """Loads API key and presets from the user's browser cookies."""
